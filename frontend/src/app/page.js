@@ -27,7 +27,7 @@ const Home = () => {
     files.forEach((file) => formData.append("files", file));
 
     try {
-      const response = await axios.post("http://localhost:5000/upload", formData, {
+      const response = await axios.post("https://image-to-pdf-backend.vercel.app/upload", formData, {
         responseType: "blob",
       });
       const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
@@ -52,7 +52,7 @@ const Home = () => {
   };
 
   return (
-    <div className="p-6 max-w-xl mx-auto bg-white shadow-lg rounded-xl">
+    <div className="p-6 max-w-xl mx-auto border-2 border-gray-300 shadow-lg rounded-xl">
       <h2 className="text-2xl font-semibold text-center mb-4">Upload Images</h2>
 
       <div className="mb-4">
