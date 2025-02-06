@@ -52,7 +52,7 @@ const Home = () => {
   };
 
   return (
-    <div className="p-6 max-w-xl mx-auto border-2 border-gray-300 shadow-lg rounded-xl">
+    <div className="p-6 max-w-xl mx-auto mt-10 border-2 border-gray-300 shadow-lg rounded-xl">
       <h2 className="text-2xl font-semibold text-center mb-4">Upload Images</h2>
 
       <div className="mb-4">
