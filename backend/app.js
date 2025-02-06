@@ -6,8 +6,9 @@ const fs = require("fs");
 const path = require("path");
 
 const app = express();
-// app.use(cors());
-app.use(cors({ origin: "*" }));
+app.use(cors());
+const PORT = process.env.PORT || 5000;
+// app.use(cors({ origin: "*" }));
 // const upload = multer({ dest: "uploads/" });
 const upload = multer({ dest: "/tmp/" });
 app.get("/", (req,res) => {
@@ -54,4 +55,7 @@ app.post("/upload", upload.array("files"), async (req, res) => {
 });
 
 // app.listen(5000, () => console.log("Server running on port 5000"));
-module.exports = app;
+// module.exports = app;
+app.listen(PORT, () => {
+  console.log(`Server running on ${PORT}`);
+});
