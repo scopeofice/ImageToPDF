@@ -43,9 +43,10 @@ const Home = () => {
     } catch (error) {
       console.error("Error uploading files:", error);
       setErrorMessage("Something went wrong. Try again after some time.");
+      setIsDisabled(false);
       setTimeout(() => {
         setErrorMessage("");
-      }, 3000);
+      }, 4000);
     } finally {
       setIsLoading(false);
     }
