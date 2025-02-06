@@ -27,9 +27,13 @@ const Home = () => {
     files.forEach((file) => formData.append("files", file));
 
     try {
-      const response = await axios.post("https://image-to-pdf-backend.vercel.app/upload", formData, {
+      // const response = await axios.post("https://image-to-pdf-backend.vercel.app/upload", formData, {
+      //   responseType: "blob",
+      // });
+      const response = await axios.post("https://image-to-pdf-backend.vercel.app/api/upload", formData, {
         responseType: "blob",
       });
+      
       const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
       setPdfUrl(url);
     } catch (error) {

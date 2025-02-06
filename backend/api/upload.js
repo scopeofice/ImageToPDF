@@ -6,7 +6,8 @@ const fs = require("fs");
 const path = require("path");
 
 const app = express();
-app.use(cors());
+// app.use(cors());
+app.use(cors({ origin: "*" }));
 // const upload = multer({ dest: "uploads/" });
 const upload = multer({ dest: "/tmp/" });
 
