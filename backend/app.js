@@ -67,7 +67,9 @@ const createPDFWithImages = async (imagePaths, outputFile) => {
   const pdfBytes = await pdfDoc.save();
   fs.writeFileSync(outputFile, pdfBytes);
 };
-
+app.get('/',(req,res)=>{
+  res.send("It works");
+})
 app.post("/upload", upload.array("files"), async (req, res) => {
   if (!req.files || req.files.length === 0) {
     return res.status(400).json({ error: "No files uploaded" });
