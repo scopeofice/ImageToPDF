@@ -14,8 +14,8 @@ const Home = () => {
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
     const validFiles = selectedFiles.filter(
-      (file) => file.type.startsWith("image/") &&
-        (file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/jpg")
+      (file) => (file.type.startsWith("image/") || file.type.startsWith("application/")) &&
+        (file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/jpg" || file.type === "application/pdf")
     );
 
     setFiles((prevFiles) => [...prevFiles, ...validFiles]);
@@ -46,12 +46,15 @@ const Home = () => {
       setIsDisabled(false);
       setTimeout(() => {
         setErrorMessage("");
-      }, 4000);
+      }, 5000);
     } finally {
       setIsLoading(false);
     }
   };
-
+  const handleRemoveFile = (index) => {
+    setFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
+  };
+  
   const handleDownload = () => {
     setFiles([]);
     setIsDisabled(false);
@@ -67,13 +70,13 @@ const Home = () => {
 
       <div className="mb-4">
         <label htmlFor="file-upload" className="block text-sm font-medium text-gray-700 mb-2">
-          Select Images (JPG, JPEG, PNG)
+          Select Images (JPG, JPEG, PNG, PDF)
         </label>
         <input
           type="file"
           id="file-upload"
           multiple
-          accept="image/jpeg,image/png,image/jpg"
+          accept="image/jpeg,image/png,image/jpg,application/pdf"
           onChange={handleFileChange}
           disabled={isDisabled}
           ref={fileInputRef}
@@ -111,18 +114,28 @@ const Home = () => {
       )}
       <div className="mt-6">
         {files.length > 0 && (
-          <div className="flex flex-wrap gap-4">
+          <div className="flex items-center justify-center flex-wrap gap-4">
             {files.map((file, index) => (
-              <div key={index} className="relative w-24 h-24 border rounded-lg overflow-hidden">
+              <div key={index} className="relative w-32 h-36 border rounded-lg flex flex-col items-center p-4">
                 {!isDisabled && (
-                <button
-                  onClick={() => handleRemoveImage(index)}
-                  className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-700"
-                >
-                  ✕
-                </button>
+                  <button
+                    onClick={() => handleRemoveFile(index)}
+                    className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-700"
+                  >
+                    ✕
+                  </button>
                 )}
-                <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-full object-cover" />
+
+                {file.type === "application/pdf" ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" height="full" viewBox="0 -960 960 960" width="full" fill="#EA3323"><path d="M360-460h40v-80h40q17 0 28.5-11.5T480-580v-40q0-17-11.5-28.5T440-660h-80v200Zm40-120v-40h40v40h-40Zm120 120h80q17 0 28.5-11.5T640-500v-120q0-17-11.5-28.5T600-660h-80v200Zm40-40v-120h40v120h-40Zm120 40h40v-80h40v-40h-40v-40h40v-40h-80v200ZM320-240q-33 0-56.5-23.5T240-320v-480q0-33 23.5-56.5T320-880h480q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H320Zm0-80h480v-480H320v480ZM160-80q-33 0-56.5-23.5T80-160v-560h80v560h560v80H160Zm160-720v480-480Z"/></svg>
+                ) : (
+                  <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-full object-cover" />
+                )}
+
+                <p className="text-xs text-center mt-1 break-words w-full">
+                  {file.name.length > 10 ? `${file.name.substring(0, 10)}...` : file.name}
+                </p>
+
               </div>
             ))}
           </div>
