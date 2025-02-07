@@ -9,9 +9,10 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use("/processed", express.static(path.join(__dirname, "processed")));
 
 const upload = multer({
-  storage: multer.memoryStorage(), // Use memory storage instead of writing to disk
+  dest: "/tmp/uploads/",
   fileFilter: (req, file, cb) => {
     const allowedTypes = ["application/pdf", "image/png", "image/jpeg", "image/jpg"];
     if (allowedTypes.includes(file.mimetype)) {
@@ -22,11 +23,7 @@ const upload = multer({
   },
 });
 
-const convertPDFToImages = async (pdfBuffer) => {
-  const tempFilePath = "/tmp/temp.pdf";
-  fs.writeFileSync(tempFilePath, pdfBuffer);
-
-  const outputDir = "/tmp/output_images";
+const convertPDFToImages = async (pdfPath, outputDir) => {
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
@@ -34,12 +31,12 @@ const convertPDFToImages = async (pdfBuffer) => {
   const opts = {
     format: "png",
     out_dir: outputDir,
-    out_prefix: "converted_image",
+    out_prefix: path.basename(pdfPath, path.extname(pdfPath)),
     page: null,
   };
 
   try {
-    await pdfPoppler.convert(tempFilePath, opts);
+    await pdfPoppler.convert(pdfPath, opts);
     return fs.readdirSync(outputDir).map((file) => path.join(outputDir, file));
   } catch (error) {
     console.error("Error converting PDF:", error);
@@ -47,24 +44,28 @@ const convertPDFToImages = async (pdfBuffer) => {
   }
 };
 
-const createPDFWithImages = async (imagePaths) => {
+const createPDFWithImages = async (imagePaths, outputFile) => {
+  if (!fs.existsSync("processed")) {
+    fs.mkdirSync("processed", { recursive: true });
+  }
+
   const pdfDoc = await PDFDocument.create();
   for (const imgPath of imagePaths) {
     const imgBytes = fs.readFileSync(imgPath);
     let img;
-
+    
     if (imgPath.endsWith(".png")) {
       img = await pdfDoc.embedPng(imgBytes);
     } else {
       img = await pdfDoc.embedJpg(imgBytes);
     }
-
+    
     const page = pdfDoc.addPage([img.width, img.height]);
     page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
   }
 
   const pdfBytes = await pdfDoc.save();
-  return pdfBytes; // Return the PDF buffer directly
+  fs.writeFileSync(outputFile, pdfBytes);
 };
 
 app.post("/upload", upload.array("files"), async (req, res) => {
@@ -73,14 +74,16 @@ app.post("/upload", upload.array("files"), async (req, res) => {
   }
 
   const processedImages = [];
-  
+  const outputPDFPath = `/tmp/processed/${Date.now()}_merged.pdf`;
+
   for (const file of req.files) {
     if (file.mimetype === "application/pdf") {
-      const images = await convertPDFToImages(file.buffer); // Use file.buffer
+      const outputDir = `/tmp/converted/${path.basename(file.path)}`;
+      const images = await convertPDFToImages(file.path, outputDir);
       processedImages.push(...images);
+      fs.unlinkSync(file.path);
     } else {
-      // Directly add image buffers to processedImages
-      processedImages.push(file.buffer);
+      processedImages.push(file.path);
     }
   }
 
@@ -88,13 +91,14 @@ app.post("/upload", upload.array("files"), async (req, res) => {
     return res.status(500).json({ error: "File conversion failed" });
   }
 
-  const pdfBuffer = await createPDFWithImages(processedImages);
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", "attachment; filename=merged.pdf");
-  res.send(pdfBuffer); // Send PDF as response
+  await createPDFWithImages(processedImages, outputPDFPath);
+
+  res.json({ downloadUrl: `http://localhost:5000/${outputPDFPath}` });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+// const PORT = 5000;
+// app.listen(PORT, () => {
+//   console.log(`Server running on http://localhost:${PORT}`);
+// });
+
+module.exports = app;
