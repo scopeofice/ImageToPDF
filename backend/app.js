@@ -1,106 +1,61 @@
 const express = require("express");
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
-const pdfPoppler = require("pdf-poppler");
-const { PDFDocument } = require("pdf-lib");
 const cors = require("cors");
+const multer = require("multer");
+const { PDFDocument } = require("pdf-lib");
+const fs = require("fs");
+const path = require("path");
 
 const app = express();
 app.use(cors());
-app.use(express.json());
-app.use("/processed", express.static(path.join(__dirname, "processed")));
-
-const upload = multer({
-  dest: "/tmp/uploads/",
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ["application/pdf", "image/png", "image/jpeg", "image/jpg"];
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only PDFs, PNG, JPG, and JPEG are allowed"));
-    }
-  },
+const PORT = process.env.PORT || 5000;
+// app.use(cors({ origin: "*" }));
+// const upload = multer({ dest: "uploads/" });
+const upload = multer({ dest: "/tmp/" });
+app.get("/", (req,res) => {
+res.send("Hi It works");
 });
-
-const convertPDFToImages = async (pdfPath, outputDir) => {
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
-
-  const opts = {
-    format: "png",
-    out_dir: outputDir,
-    out_prefix: path.basename(pdfPath, path.extname(pdfPath)),
-    page: null,
-  };
-
-  try {
-    await pdfPoppler.convert(pdfPath, opts);
-    return fs.readdirSync(outputDir).map((file) => path.join(outputDir, file));
-  } catch (error) {
-    console.error("Error converting PDF:", error);
-    return [];
-  }
-};
-
-const createPDFWithImages = async (imagePaths, outputFile) => {
-  if (!fs.existsSync("processed")) {
-    fs.mkdirSync("processed", { recursive: true });
-  }
-
-  const pdfDoc = await PDFDocument.create();
-  for (const imgPath of imagePaths) {
-    const imgBytes = fs.readFileSync(imgPath);
-    let img;
-    
-    if (imgPath.endsWith(".png")) {
-      img = await pdfDoc.embedPng(imgBytes);
-    } else {
-      img = await pdfDoc.embedJpg(imgBytes);
-    }
-    
-    const page = pdfDoc.addPage([img.width, img.height]);
-    page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
-  }
-
-  const pdfBytes = await pdfDoc.save();
-  fs.writeFileSync(outputFile, pdfBytes);
-};
-app.get('/',(req,res)=>{
-  res.send("It works");
-})
 app.post("/upload", upload.array("files"), async (req, res) => {
-  if (!req.files || req.files.length === 0) {
-    return res.status(400).json({ error: "No files uploaded" });
-  }
+  try {
+    const files = req.files;
+    const pdfDoc = await PDFDocument.create();
 
-  const processedImages = [];
-  const outputPDFPath = `/tmp/processed/${Date.now()}_merged.pdf`;
+    for (const file of files) {
+      // const filePath = path.join(__dirname, "uploads", file.filename);
+      const filePath = path.join("/tmp", file.filename);
+      const fileMimeType = file.mimetype;
 
-  for (const file of req.files) {
-    if (file.mimetype === "application/pdf") {
-      const outputDir = `/tmp/converted/${path.basename(file.path)}`;
-      const images = await convertPDFToImages(file.path, outputDir);
-      processedImages.push(...images);
-      fs.unlinkSync(file.path);
-    } else {
-      processedImages.push(file.path);
+      const imgBytes = fs.readFileSync(filePath);
+      let img;
+
+      // Embed JPG or PNG into the PDF
+      if (fileMimeType === "image/jpeg" || fileMimeType === "image/jpg") {
+        img = await pdfDoc.embedJpg(imgBytes);
+      } else if (fileMimeType === "image/png") {
+        img = await pdfDoc.embedPng(imgBytes);
+      } else {
+        continue; // Skip unsupported file types
+      }
+
+      // Create a new page for each image
+      const page = pdfDoc.addPage([img.width, img.height]);
+      page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+
+      // Cleanup uploaded image
+      // fs.unlinkSync(filePath);
     }
+
+    const pdfBytes = await pdfDoc.save();
+    res.contentType("application/pdf");
+    res.send(Buffer.from(pdfBytes));
+
+  } catch (error) {
+    console.error("Error processing images:", error);
+    res.status(500).send("Error generating PDF");
   }
-
-  if (processedImages.length === 0) {
-    return res.status(500).json({ error: "File conversion failed" });
-  }
-
-  await createPDFWithImages(processedImages, outputPDFPath);
-
-  res.json({ downloadUrl: `http://localhost:5000/${outputPDFPath}` });
 });
 
-// const PORT = 5000;
-// app.listen(PORT, () => {
-//   console.log(`Server running on http://localhost:${PORT}`);
-// });
-
-module.exports = app;
+// app.listen(5000, () => console.log("Server running on port 5000"));
+// module.exports = app;
+app.listen(PORT, () => {
+  console.log(`Server running on ${PORT}`);
+});

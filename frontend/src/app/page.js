@@ -34,7 +34,7 @@ const Home = () => {
     files.forEach((file) => formData.append("files", file));
 
     try {
-      const response = await axios.post("https://image-to-pdf-backend.vercel.app/upload", formData, {
+      const response = await axios.post("http://localhost:5000/upload", formData, {
         responseType: "blob",
       });
 
@@ -67,13 +67,13 @@ const Home = () => {
 
       <div className="mb-4">
         <label htmlFor="file-upload" className="block text-sm font-medium text-gray-700 mb-2">
-          Select Images (JPG, JPEG, PNG, PDF)
+          Select Images (JPG, JPEG, PNG)
         </label>
         <input
           type="file"
           id="file-upload"
           multiple
-          accept="image/jpeg,image/png,image/jpg,application/pdf"
+          accept="image/jpeg,image/png,image/jpg"
           onChange={handleFileChange}
           disabled={isDisabled}
           ref={fileInputRef}
