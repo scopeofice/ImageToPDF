@@ -11,6 +11,10 @@ app.use(cors({ origin: "*" }));
 // const upload = multer({ dest: "uploads/" });
 const upload = multer({ dest: "/tmp/" });
 
+app.get("/",(req,res)=>{
+  res.send("It is working");
+})
+
 app.post("/upload", upload.array("files"), async (req, res) => {
   try {
     const files = req.files;
