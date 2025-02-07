@@ -67,13 +67,13 @@ const Home = () => {
 
       <div className="mb-4">
         <label htmlFor="file-upload" className="block text-sm font-medium text-gray-700 mb-2">
-          Select Images (JPG, JPEG, PNG)
+          Select Images (JPG, JPEG, PNG, PDF)
         </label>
         <input
           type="file"
           id="file-upload"
           multiple
-          accept="image/jpeg,image/png,image/jpg"
+          accept="image/jpeg,image/png,image/jpg,application/pdf"
           onChange={handleFileChange}
           disabled={isDisabled}
           ref={fileInputRef}
