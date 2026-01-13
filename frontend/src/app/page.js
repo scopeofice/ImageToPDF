@@ -8,7 +8,6 @@ const MAX_PREVIEW_FILES = 100;
 const MAX_TOTAL_SIZE_MB = 50;
 
 const Home = () => {
-  const [files, setFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [pdfUrl, setPdfUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -107,7 +106,7 @@ const Home = () => {
   const handleDownload = () => {
     previews.forEach((url) => url && URL.revokeObjectURL(url));
 
-    setFiles([]);
+    setFileList([]);
     setPreviews([]);
     setPdfUrl("");
     setIsDisabled(false);

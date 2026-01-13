@@ -7,7 +7,12 @@ const path = require("path");
 const sharp = require("sharp");
 
 const app = express();
-app.use(cors({ origin: "*" }));
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "OPTIONS"],
+  })
+);
 
 const upload = multer({
   dest: "/tmp/",
