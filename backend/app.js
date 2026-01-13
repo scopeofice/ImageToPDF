@@ -4,125 +4,90 @@ const multer = require("multer");
 const { PDFDocument } = require("pdf-lib");
 const fs = require("fs");
 const path = require("path");
+const sharp = require("sharp");
 
 const app = express();
 app.use(cors({ origin: "*" }));
 
-const upload = multer({ dest: "/tmp/" });
+const upload = multer({
+  dest: "/tmp/",
+  limits: {
+    files: 120,
+    fileSize: 20 * 1024 * 1024,
+  },
+});
 
-app.get("/", (req, res) => {
+app.get("/", (_, res) => {
   res.send("It is working");
 });
 
 app.post("/upload", upload.array("files"), async (req, res) => {
   try {
-    const files = req.files;
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).send("No files uploaded");
+    }
+
     const pdfDoc = await PDFDocument.create();
 
-    for (const file of files) {
+    for (const file of req.files) {
       const filePath = path.join("/tmp", file.filename);
-      const fileMimeType = file.mimetype;
 
-      if (fileMimeType === "image/jpeg" || fileMimeType === "image/jpg" || fileMimeType === "image/png") {
-        const imgBytes = fs.readFileSync(filePath);
-        let img;
+      try {
+        if (file.mimetype.startsWith("image/")) {
+          const imgBytes = await sharp(filePath)
+            .resize({ width: 1200 })
+            .toBuffer();
 
-        if (fileMimeType === "image/jpeg" || fileMimeType === "image/jpg") {
-          img = await pdfDoc.embedJpg(imgBytes);
-        } else if (fileMimeType === "image/png") {
-          img = await pdfDoc.embedPng(imgBytes);
+          const img = file.mimetype.includes("png")
+            ? await pdfDoc.embedPng(imgBytes)
+            : await pdfDoc.embedJpg(imgBytes);
+
+          const PAGE_WIDTH = 595;
+          const PAGE_HEIGHT = 842;
+
+          let scale = PAGE_WIDTH / img.width;
+          let scaledWidth = img.width * scale;
+          let scaledHeight = img.height * scale;
+
+          if (scaledHeight > PAGE_HEIGHT) {
+            scale = PAGE_HEIGHT / img.height;
+            scaledWidth = img.width * scale;
+            scaledHeight = img.height * scale;
+          }
+
+          const page = pdfDoc.addPage([scaledWidth, scaledHeight]);
+
+          page.drawImage(img, {
+            x: 0,
+            y: 0,
+            width: scaledWidth,
+            height: scaledHeight,
+          });
+        } else if (file.mimetype === "application/pdf") {
+          const pdfBytes = await fs.promises.readFile(filePath);
+          const srcDoc = await PDFDocument.load(pdfBytes);
+          const pages = await pdfDoc.copyPages(srcDoc, srcDoc.getPageIndices());
+          pages.forEach((p) => pdfDoc.addPage(p));
         }
-
-        const pageWidth = 595.28;
-        const imgAspectRatio = img.width / img.height;
-        const imgWidth = Math.min(img.width, pageWidth);
-        const imgHeight = imgWidth / imgAspectRatio;
-
-        const page = pdfDoc.addPage([pageWidth, imgHeight]);
-        page.drawImage(img, { x: 0, y: 0, width: imgWidth, height: imgHeight });
-      
-      } else if (fileMimeType === "application/pdf") {
-        const existingPdfBytes = fs.readFileSync(filePath);
-        const existingPdfDoc = await PDFDocument.load(existingPdfBytes);
-        const copiedPages = await pdfDoc.copyPages(existingPdfDoc, existingPdfDoc.getPageIndices());
-
-        copiedPages.forEach((page) => pdfDoc.addPage(page));
+      } finally {
+        fs.promises.unlink(filePath).catch(() => {});
       }
     }
 
     const pdfBytes = await pdfDoc.save();
-    res.contentType("application/pdf");
-    res.send(Buffer.from(pdfBytes));
 
-  } catch (error) {
-    console.error("Error processing files:", error);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=merged.pdf");
+    res.send(Buffer.from(pdfBytes));
+  } catch (err) {
+    console.error("PDF merge error:", err);
     res.status(500).send("Error generating PDF");
   }
 });
 
 module.exports = app;
-// app.listen(5000, () => console.log("Server running on port 5000"));
+// const PORT = process.env.PORT || 3001;
 
-
-
-
-
-// const express = require("express");
-// const cors = require("cors");
-// const multer = require("multer");
-// const { PDFDocument } = require("pdf-lib");
-// const fs = require("fs");
-// const path = require("path");
-
-// const app = express();
-// // app.use(cors());
-// app.use(cors({ origin: "*" }));
-// // const upload = multer({ dest: "uploads/" });
-// const upload = multer({ dest: "/tmp/" });
-
-// app.get("/",(req,res)=>{
-//   res.send("It is working");
-// })
-
-// app.post("/upload", upload.array("files"), async (req, res) => {
-//   try {
-//     const files = req.files;
-//     const pdfDoc = await PDFDocument.create();
-
-//     for (const file of files) {
-//       // const filePath = path.join(__dirname, "uploads", file.filename);
-//       const filePath = path.join("/tmp", file.filename);
-//       const fileMimeType = file.mimetype;
-
-//       const imgBytes = fs.readFileSync(filePath);
-//       let img;
-
-//       // Embed JPG or PNG into the PDF
-//       if (fileMimeType === "image/jpeg" || fileMimeType === "image/jpg") {
-//         img = await pdfDoc.embedJpg(imgBytes);
-//       } else if (fileMimeType === "image/png") {
-//         img = await pdfDoc.embedPng(imgBytes);
-//       } else {
-//         continue; // Skip unsupported file types
-//       }
-
-//       // Create a new page for each image
-//       const page = pdfDoc.addPage([img.width, img.height]);
-//       page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
-
-//       // Cleanup uploaded image
-//       // fs.unlinkSync(filePath);
-//     }
-
-//     const pdfBytes = await pdfDoc.save();
-//     res.contentType("application/pdf");
-//     res.send(Buffer.from(pdfBytes));
-
-//   } catch (error) {
-//     console.error("Error processing images:", error);
-//     res.status(500).send("Error generating PDF");
-//   }
+// app.listen(PORT, () => {
+//   console.log(`Server running on port ${PORT}`);
 // });
-
-// // app.listen(5000, () => console.log("Server running on port 5000"));
-// module.exports = app;
